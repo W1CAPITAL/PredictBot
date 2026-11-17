@@ -92,8 +92,16 @@ export class OpenCodeAdapter {
   if(!this.#sessions.has(id))throw Error('Sessão não autorizada para este usuário e empresa.');
  }
  async health(){await this.#connect();const info=await this.#call('health');if(info?.healthy===false||typeof info?.version!=='string')throw Error('OpenCode informou serviço indisponível.');return {healthy:true,version:info.version,api:this.#version.startsWith('2.')?'v2':'v1',capabilities:Object.keys(this.#routes)};}
- async listProviders(){return this.#call('providers',{scoped:true});}
- async listModels(){return this.#call('models',{scoped:true});}
+ async listProviders(){
+  const response=await this.#call('providers',{scoped:true});const rows=Array.isArray(response)?response:response?.data||response?.all;
+  if(!Array.isArray(rows))throw Error('Resposta OpenCode de provedores inválida.');
+  return rows.map(p=>({id:p.id,name:p.name}));
+ }
+ async listModels(){
+  const response=await this.#call('models',{scoped:true});const rows=Array.isArray(response)?response:response?.data;
+  if(!Array.isArray(rows))throw Error('Resposta OpenCode de modelos inválida.');
+  return rows.map(m=>Object.fromEntries(['id','modelID','providerID','name','type','enabled','status'].filter(k=>['string','boolean'].includes(typeof m[k])).map(k=>[k,m[k]])));
+ }
  listProjects(){return Promise.resolve([{directory:this.#directory}]);}
  async listSessions(){await this.#connect();return [...this.#sessions].map(id=>({id}));}
  async createSession({title='W1 Capital',mode='restricted'}={}){

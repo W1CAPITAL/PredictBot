@@ -33,3 +33,9 @@ test('identidade local estável recupera sessão mesmo quando a porta muda',asyn
  const config={password:'synthetic',directory:'/tmp/p',principal,stateDirectory:state,serverIdentity:'local:approved-binary',fetch};
  try{await new OpenCodeAdapter({...config,url:'http://127.0.0.1:41001'}).createSession({});assert.equal((await new OpenCodeAdapter({...config,url:'http://127.0.0.1:41002'}).getSession('ses_stable')).id,'ses_stable');}finally{await rm(state,{recursive:true,force:true});}
 });
+test('listagens não expõem headers ou configurações secretas dos provedores',async()=>{
+ const secretPaths={...paths,'/api/provider':{get:{operationId:'provider.list'}},'/api/model':{get:{operationId:'model.list'}}};
+ const fetch=async url=>Response.json(new URL(url).pathname==='/doc'?{openapi:'3.1.0',paths:secretPaths}:new URL(url).pathname==='/api/info'?{version:'2.3.0'}:{data:[{id:'demo',name:'Demo',headers:{Authorization:'synthetic-secret'},settings:{apiKey:'synthetic-secret'},body:{key:'synthetic-secret'}}]});
+ const adapter=new OpenCodeAdapter({url:'http://127.0.0.1:4096',password:'synthetic',directory:'/tmp/p',principal,fetch});
+ assert.ok(!JSON.stringify(await adapter.listProviders()).includes('synthetic-secret'));assert.ok(!JSON.stringify(await adapter.listModels()).includes('synthetic-secret'));
+});
