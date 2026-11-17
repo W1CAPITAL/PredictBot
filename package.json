@@ -1,0 +1,12 @@
+{
+  "name": "@w1capital/predictbot-opencode",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Adaptador OpenCode e ponte MCP STDIO da W1 Capital",
+  "exports": {".":"./src/opencode-adapter.mjs","./runtime":"./src/opencode-runtime.mjs","./mcp":"./src/mcp-server.mjs"},
+  "bin": {"w1-opencode-mcp":"./src/cli.mjs"},
+  "files": ["src", "docs", "README.md"],
+  "engines": {"node": ">=22"},
+  "scripts": {"test":"node --test test/*.test.mjs","check":"node --check src/opencode-adapter.mjs && node --check src/opencode-runtime.mjs && node --check src/mcp-server.mjs && node --check src/cli.mjs","test:live":"node scripts/live-smoke.mjs"},
+  "dependencies": {"@modelcontextprotocol/sdk":"1.32.2","zod":"3.25.76"}
+}

@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {Client} from '@modelcontextprotocol/sdk/client/index.js';
+import {InMemoryTransport} from '@modelcontextprotocol/sdk/inMemory.js';
+import {createOpenCodeMcpServer} from '../src/mcp-server.mjs';
+async function setup(scopes){const [a,b]=InMemoryTransport.createLinkedPair();const calls=[];const adapter={health:async()=>({healthy:true}),getSession:async id=>{calls.push(id);throw Error('Sessão não autorizada.');}};const server=createOpenCodeMcpServer({adapter,scopes});const client=new Client({name:'w1-test',version:'1'});await server.connect(a);await client.connect(b);return {client,calls,close:async()=>{await client.close();await server.close();}};}
+test('MCP negocia ferramentas e nega execução por padrão',async()=>{const s=await setup(['read']);try{const tools=(await s.client.listTools()).tools;assert.equal(tools.length,10);assert.ok(!tools.some(t=>t.name==='opencode_send_prompt'));assert.ok((await s.client.callTool({name:'opencode_health',arguments:{}})).content[0].text.includes('true'));}finally{await s.close();}});
+test('MCP valida ID malformado antes do adaptador',async()=>{const s=await setup(['read']);try{const r=await s.client.callTool({name:'opencode_get_session',arguments:{sessionId:'../../secret'}});assert.equal(r.isError,true);assert.equal(s.calls.length,0);}finally{await s.close();}});
+test('MCP mantém sessão desconhecida como erro explícito',async()=>{const s=await setup(['read']);try{const r=await s.client.callTool({name:'opencode_get_session',arguments:{sessionId:'ses_outro'}});assert.equal(r.isError,true);assert.match(r.content[0].text,/não autorizada/);}finally{await s.close();}});
+test('escopo execute não concede gerenciamento MCP',async()=>{const s=await setup(['read','execute']);try{const tools=(await s.client.listTools()).tools;assert.ok(tools.some(t=>t.name==='opencode_send_prompt'));assert.ok(!tools.some(t=>t.name==='opencode_configure_mcp'));}finally{await s.close();}});
