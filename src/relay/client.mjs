@@ -28,13 +28,16 @@ export class OpenCodeRelayClient{
    if(job.expiresAt<Date.now())return;
    const receipt={jobId:job.id,lease:job.lease,status:'unknown',result:{error:'Resultado não confirmado.'}};
    this.#seen.set(job.id,receipt);
+   let attempted=false;
    try{
     if(checked.scope==='execute'&&await this.#approve(structuredClone({...job,input:checked.input}))!==true)throw Error('Operação recusada no computador.');
     if(!this.#active||generation!==this.#generation)throw Error('Ponte encerrada antes da execução.');
     this.#onState({state:'executing',operation:checked.operation,jobId:job.id});
+    // Once a write reaches the adapter, an error cannot prove absence of effects.
+    attempted=true;
     receipt.result=await this.#execute(checked.operation,checked.input);receipt.status='succeeded';
     if(JSON.stringify(receipt.result).length>240000){receipt.status='failed';receipt.result={error:'Resultado maior que o limite da ponte. Consulte o OpenCode local.'};}
-   }catch(error){receipt.status=error?.name==='TimeoutError'||error?.name==='TypeError'?'unknown':'failed';receipt.result={error:receipt.status==='unknown'?'O resultado da chamada não foi confirmado. Não repita automaticamente.':'A operação falhou ou foi recusada no computador.'};}
+   }catch(error){receipt.status=(attempted&&checked.scope==='execute')||error?.name==='TimeoutError'||error?.name==='TypeError'?'unknown':'failed';receipt.result={error:receipt.status==='unknown'?'O resultado da chamada não foi confirmado. Não repita automaticamente.':'A operação falhou ou foi recusada no computador.'};}
    if(generation!==this.#generation)return;
    if(this.#seen.size>500)this.#seen.delete(this.#seen.keys().next().value);
    this.#pending.push(receipt);await this.#request('/v1/device/complete',receipt);if(generation!==this.#generation)return;this.#pending.shift();this.#onState({state:'approved',lastOperation:checked.operation,lastStatus:receipt.status});

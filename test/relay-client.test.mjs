@@ -9,3 +9,21 @@ test('resposta atrasada de dispositivo anterior não derruba novo pareamento',as
  const client=new OpenCodeRelayClient({url:'https://relay.example.test',fetch}),adapter={forPrincipal(){return this;}};
  try{await client.pair({pairingCode:'first',name:'first',adapter});const previous=client.tick();await client.pair({pairingCode:'second',name:'second',adapter});release();await previous;await client.tick();assert.equal(polls,2);}finally{client.stop();}
 });
+for(const [operation,method,input] of [
+ ['prompt','sendPrompt',{sessionId:'ses_test',text:'synthetic'}],
+ ['create','createSession',{title:'synthetic'}],
+ ['abort','abortSession',{sessionId:'ses_test'}]
+])test('erro da API após tentar '+operation+' preserva resultado desconhecido',async()=>{
+ const job={id:'job-uncertain-'+operation,operation,input,lease:'synthetic-lease',expiresAt:Date.now()+60000};
+ const f=fixture(job,async()=>true);let attempts=0;
+ f.adapter[method]=async()=>{attempts++;throw Error('OpenCode respondeu HTTP 503.');};
+ try{await f.client.pair({pairingCode:'synthetic',name:'test',adapter:f.adapter});await f.client.tick();await f.client.tick();
+  const receipt=f.calls.find(x=>x.path.endsWith('/complete')).body;
+  assert.equal(receipt.status,'unknown');assert.match(receipt.result.error,/Não repita automaticamente/);assert.equal(attempts,1);
+ }finally{f.client.stop();}
+});
+test('erro explícito de leitura continua sendo falha, sem alegar efeito de escrita',async()=>{
+ const job={id:'job-read-failure',operation:'health',input:{},lease:'synthetic-lease',expiresAt:Date.now()+60000};const f=fixture(job);
+ f.adapter.health=async()=>{throw Error('OpenCode respondeu HTTP 503.');};
+ try{await f.client.pair({pairingCode:'synthetic',name:'test',adapter:f.adapter});await f.client.tick();assert.equal(f.calls.find(x=>x.path.endsWith('/complete')).body.status,'failed');}finally{f.client.stop();}
+});
