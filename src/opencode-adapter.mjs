@@ -33,14 +33,15 @@ export function validateMcpConfig(config,allowLocal=false){
 const V1={health:['get','/global/health'],providers:['get','/provider'],projects:['get','/project'],create:['post','/session'],get:['get','/session/{id}'],messages:['get','/session/{id}/message'],diff:['get','/session/{id}/diff'],prompt:['post','/session/{id}/prompt_async'],abort:['post','/session/{id}/abort'],mcp:['get','/mcp'],events:['get','/event']};
 const V2={events:'event.subscribe',health:'server.info',models:'model.list',providers:'provider.list',projects:'project.list',create:'session.create',get:'session.get',messages:'session.message.list',diff:'session.diff',prompt:'session.prompt',abort:'session.interrupt',mcp:'mcp.list',mcpAdd:'experimental.mcp.add',mcpRemove:'experimental.mcp.remove',mcpConnect:'experimental.mcp.connect',mcpDisconnect:'experimental.mcp.disconnect'};
 export class OpenCodeAdapter {
- #url;#password;#fetch;#principal;#directory;#ledger;#sessions=new Set();#routes;#version;#save=Promise.resolve();#audit;#connecting;
+ #url;#password;#fetch;#principal;#directory;#ledger;#sessions=new Set();#routes;#version;#save=Promise.resolve();#audit;#connecting;#stateDirectory;#serverIdentity;
  constructor({url,password,directory,principal,stateDirectory,serverIdentity,fetch:fetchFn=globalThis.fetch,audit=()=>{}}){
   this.#url=validateEndpoint(url);if(typeof password!=='string'||!password)throw Error('Informe a senha do servidor OpenCode.');
   if(!directory||!(isAbsolute(directory)||win32.isAbsolute(directory)))throw Error('Informe uma pasta de projeto absoluta.');
   if(!principal?.userId||!principal?.companyId)throw Error('Usuário e empresa são obrigatórios.');
-  this.#principal=Object.freeze({...principal});this.#directory=isAbsolute(directory)?resolve(directory):win32.normalize(directory);this.#password=password;this.#fetch=fetchFn;this.#audit=audit;
+  this.#principal=Object.freeze({...principal});this.#stateDirectory=stateDirectory;this.#serverIdentity=serverIdentity;this.#directory=isAbsolute(directory)?resolve(directory):win32.normalize(directory);this.#password=password;this.#fetch=fetchFn;this.#audit=audit;
   if(stateDirectory){const key=createHash('sha256').update(JSON.stringify([serverIdentity||this.#url.href,this.#directory,principal.userId,principal.companyId])).digest('hex');this.#ledger=join(stateDirectory,key+'.json');}
  }
+ forPrincipal(principal){return new OpenCodeAdapter({url:this.#url.href,password:this.#password,directory:this.#directory,principal,stateDirectory:this.#stateDirectory,serverIdentity:this.#serverIdentity,fetch:this.#fetch,audit:this.#audit});}
  async #json(path,{method='GET',body,timeout=20000}={}){
   const started=Date.now();
   const target=new URL(path,this.#url);if(target.origin!==this.#url.origin)throw Error('Contrato OpenCode tentou trocar a origem.');

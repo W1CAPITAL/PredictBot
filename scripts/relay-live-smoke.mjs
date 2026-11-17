@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';import {Miniflare} from 'miniflare';import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
+import {OpenCodeRuntime} from '../src/opencode-runtime.mjs';import {OpenCodeRelayClient} from '../src/relay/client.mjs';
+const executable=process.env.W1_OPENCODE_EXECUTABLE;if(!executable)throw Error('Defina W1_OPENCODE_EXECUTABLE.');
+const dir=await mkdtemp(join(tmpdir(),'w1-relay-live-')),runtime=new OpenCodeRuntime();
+const authBase='https://auth.example.test';const claims={sub:'smoke-user',iss:authBase+'/auth/v1',aud:'authenticated',exp:Date.now()/1000+3600,aal:'aal2'};const bearer='Bearer e30.'+Buffer.from(JSON.stringify(claims)).toString('base64url')+'.synthetic-signature';
+const mf=new Miniflare({modules:true,scriptPath:'dist/worker.mjs',compatibilityDate:'2026-07-28',compatibilityFlags:['nodejs_compat'],bindings:{RELAY_SIGNING_KEY:'synthetic-test-key-for-live-smoke',SUPABASE_URL:authBase,SUPABASE_PUBLISHABLE_KEY:'synthetic-only'},durableObjects:{RELAY:{className:'OpenCodeRelay',useSQLite:true}},outboundService:async request=>{const path=new URL(request.url).pathname;return Response.json(path==='/auth/v1/user'?{id:'smoke-user'}:path.includes('usuarios')?[{empresa_id:'smoke-company'}]:[{config:{mcp_enabled:true}}]);}});
+const fetchRelay=(url,options)=>mf.dispatchFetch(url,options);
+const client=new OpenCodeRelayClient({url:'https://relay.test',approve:async()=>true,fetch:fetchRelay});
+async function api(path,body){const response=await mf.dispatchFetch('https://relay.test'+path,{method:'POST',headers:{Authorization:bearer,'Content-Type':'application/json'},body:JSON.stringify(body)});assert.equal(response.status,200);return response.json();}
+async function run(deviceId,operation,input={}){const key=crypto.randomUUID();await api('/v1/jobs',{deviceId,operation,input,key});for(let i=0;i<50;i++){await client.tick();const task=await api('/v1/task',{jobId:key});if(['succeeded','failed','unknown'].includes(task.status)){assert.equal(task.status,'succeeded',JSON.stringify(task));return task.result;}await new Promise(resolve=>setTimeout(resolve,100));}throw Error('Timeout no smoke da ponte.');}
+try{
+ const {adapter}=await runtime.start({executable,directory:dir,stateDirectory:join(dir,'state'),principal:{userId:'temporary-local',companyId:'temporary-local'}});
+ const code=await api('/v1/pair',{scopes:['read','execute']});const paired=await client.pair({pairingCode:code.pairingCode,name:'Synthetic smoke',adapter});await api('/v1/approve',{deviceId:paired.deviceId,confirmation:paired.confirmation});
+ const health=await run(paired.deviceId,'health');assert.equal(health.healthy,true);const session=await run(paired.deviceId,'create',{title:'Remote API synthetic test'});assert.ok(session.id);assert.equal((await run(paired.deviceId,'get',{sessionId:session.id})).id,session.id);
+ console.log(JSON.stringify({verified:true,version:health.version,relayWorker:true,durableQueue:true,localConnector:true,realOpenCode:true,syntheticIdentity:true,modelPromptSent:false}));
+}finally{client.stop();runtime.stop();await mf.dispose();await rm(dir,{recursive:true,force:true,maxRetries:8,retryDelay:100});}

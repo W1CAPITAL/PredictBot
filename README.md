@@ -52,8 +52,33 @@ As dez ferramentas de leitura são o padrão. As demais exigem o respectivo esco
 
 ## Limites atuais
 
-Ainda não estão implementados: transporte MCP HTTP público/OAuth, pareamento com PredictBot na nuvem, fila remota, interface Hermes 3D, migração dos chats e integração autorizada com PredictLM. A API OpenCode não é uma API pública de inferência gratuita.
+A versão 0.2 acrescenta MCP HTTP, validação OAuth/MFA, pareamento e fila remota descritos abaixo. Interface Hermes 3D, migração dos chats e integração autorizada com PredictLM continuam com a frente de plataforma. A API OpenCode não é uma API pública de inferência gratuita.
 
 O timeout de transporte não prova cancelamento do trabalho no servidor. Consulte a sessão e use `opencode_abort_session` se necessário. Não repita automaticamente um prompt cujo aceite ficou incerto.
 
 Veja [a auditoria e o plano](docs/auditoria-integracao.md).
+
+## Ponte remota 0.2
+
+A ponte remota usa conexão de saída do computador, sem publicar a porta do OpenCode. O servidor MCP HTTP está em:
+
+`https://predictbot-opencode.daviconcentrix.workers.dev/mcp`
+
+O pareamento é feito em [Conectar OpenCode](https://predictbot-opencode.daviconcentrix.workers.dev/connect), usando a conta Supabase existente e o autenticador. A empresa precisa estar com MCP ativado. Clientes OAuth precisam estar na lista autorizada da empresa e possuir o grant MFA válido já usado pelo INFINITUM. Nenhuma política ou tabela do CRM foi alterada.
+
+Na Central: conecte primeiro o OpenCode, abra **Usar este OpenCode à distância**, gere o código na página, cole no aplicativo e confirme o dispositivo na página. Códigos valem cinco minutos e são de uso único; o dispositivo precisa da confirmação do usuário autenticado. As permissões de leitura são o padrão; escrita é opcional e cada operação ainda pede confirmação no computador. A credencial do dispositivo fica no processo principal, expira em 24 horas e pode ser revogada. Fechar/reabrir a Central exige novo pareamento; perda temporária de internet durante a sessão tem reconexão automática.
+
+O MCP remoto devolve um ID de operação. Use `opencode_get_task` para obter o resultado; `succeeded` significa que a chamada à API do OpenCode respondeu, não que o modelo concluiu o trabalho. `opencode_list_devices` mostra seus dispositivos. Cada chamada enfileirada exige `deviceId` e `requestId` UUID, para idempotência. O transporte local STDIO continua disponível.
+
+A fila usa um Durable Object SQLite separado por empresa e usuário. Entradas/resultados são temporários e expiram em até 15 minutos; esse armazenamento não é arquivo de clientes, WhatsApp ou memória de agentes. Código de pareamento e tokens são assinados; segredos do dispositivo são guardados como hash no servidor. Nenhuma ferramenta de shell ou de configuração arbitrária de MCP é oferecida à nuvem. Sessões para tarefas remotas usam a aprovação nativa do OpenCode.
+
+```sh
+npm ci --ignore-scripts
+npm test
+npm run check
+npm run build:relay
+```
+
+O teste de runtime exercita o Worker e o SQLite reais no Miniflare, com identidade sintética. Para testar a ponte inteira com um binário OpenCode real, defina `W1_OPENCODE_EXECUTABLE` e execute `node scripts/relay-live-smoke.mjs`. O teste não envia prompt de inferência.
+
+Veja [contrato de integração e divisão de trabalho](docs/OPENCODE-CONTRATO.md).
