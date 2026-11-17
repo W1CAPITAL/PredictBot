@@ -16,6 +16,9 @@ try{
  await adapter.listMcpServers();await adapter.manageMcp('w1-smoke-disabled','mcpRemove');
  await adapter.listProviders();await adapter.listModels();await adapter.listMcpServers();await adapter.getMessages(session.id);
  assert.equal((await adapter.listSessions()).length,1);
+ runtime.stop();
+ const restarted=await runtime.start({executable,directory:root,stateDirectory:join(root,'state'),principal:{userId:'smoke-only',companyId:'smoke-only'}});
+ assert.equal((await restarted.adapter.getSession(session.id)).id,session.id);
  await assert.rejects(()=>adapter.getSession('ses_outro'),/não autorizada/);
- console.log(JSON.stringify({verified:true,version:health.version,sessionCreated:true,sessionRead:true,models:true,mcpStatus:true,modelPromptSent:false}));
+ console.log(JSON.stringify({verified:true,version:health.version,sessionCreated:true,sessionRead:true,restartRecovered:true,models:true,mcpStatus:true,modelPromptSent:false}));
 }finally{runtime.stop();await rm(root,{recursive:true,force:true,maxRetries:10,retryDelay:100});}

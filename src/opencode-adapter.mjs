@@ -34,12 +34,12 @@ const V1={health:['get','/global/health'],providers:['get','/provider'],projects
 const V2={events:'event.subscribe',health:'server.info',models:'model.list',providers:'provider.list',projects:'project.list',create:'session.create',get:'session.get',messages:'session.message.list',diff:'session.diff',prompt:'session.prompt',abort:'session.interrupt',mcp:'mcp.list',mcpAdd:'experimental.mcp.add',mcpRemove:'experimental.mcp.remove',mcpConnect:'experimental.mcp.connect',mcpDisconnect:'experimental.mcp.disconnect'};
 export class OpenCodeAdapter {
  #url;#password;#fetch;#principal;#directory;#ledger;#sessions=new Set();#routes;#version;#save=Promise.resolve();#audit;#connecting;
- constructor({url,password,directory,principal,stateDirectory,fetch:fetchFn=globalThis.fetch,audit=()=>{}}){
+ constructor({url,password,directory,principal,stateDirectory,serverIdentity,fetch:fetchFn=globalThis.fetch,audit=()=>{}}){
   this.#url=validateEndpoint(url);if(typeof password!=='string'||!password)throw Error('Informe a senha do servidor OpenCode.');
   if(!directory||!(isAbsolute(directory)||win32.isAbsolute(directory)))throw Error('Informe uma pasta de projeto absoluta.');
   if(!principal?.userId||!principal?.companyId)throw Error('Usuário e empresa são obrigatórios.');
   this.#principal=Object.freeze({...principal});this.#directory=isAbsolute(directory)?resolve(directory):win32.normalize(directory);this.#password=password;this.#fetch=fetchFn;this.#audit=audit;
-  if(stateDirectory){const key=createHash('sha256').update(JSON.stringify([this.#url.href,this.#directory,principal.userId,principal.companyId])).digest('hex');this.#ledger=join(stateDirectory,key+'.json');}
+  if(stateDirectory){const key=createHash('sha256').update(JSON.stringify([serverIdentity||this.#url.href,this.#directory,principal.userId,principal.companyId])).digest('hex');this.#ledger=join(stateDirectory,key+'.json');}
  }
  async #json(path,{method='GET',body,timeout=20000}={}){
   const started=Date.now();
@@ -74,8 +74,9 @@ export class OpenCodeAdapter {
   const info=await this.#json(routes.health[1]);
   if(info?.healthy===false)throw Error('OpenCode informou serviço indisponível.');
   if(!/^[12]\./.test(info?.version||''))throw Error('Versão OpenCode não suportada.');
-  this.#version=info.version;this.#routes=routes;
+  this.#version=info.version;
   if(this.#ledger){try{const data=JSON.parse(await readFile(this.#ledger,'utf8'));this.#sessions=new Set(data.sessions);}catch(e){if(e.code!=='ENOENT')throw Error('Registro de sessões inválido.');}}
+  this.#routes=routes;
  }
  async #call(key,{id,name,body,scoped=false}={}){
   await this.#connect();const route=this.#routes[key];if(!route)throw Error('Operação '+key+' não disponível nesta versão do OpenCode.');
@@ -90,7 +91,7 @@ export class OpenCodeAdapter {
   if(!this.#sessions.has(id)&&this.#ledger)await this.#connect();
   if(!this.#sessions.has(id))throw Error('Sessão não autorizada para este usuário e empresa.');
  }
- async health(){await this.#connect();const info=await this.#call('health');return {healthy:true,version:info.version,api:this.#version.startsWith('2.')?'v2':'v1',capabilities:Object.keys(this.#routes)};}
+ async health(){await this.#connect();const info=await this.#call('health');if(info?.healthy===false||typeof info?.version!=='string')throw Error('OpenCode informou serviço indisponível.');return {healthy:true,version:info.version,api:this.#version.startsWith('2.')?'v2':'v1',capabilities:Object.keys(this.#routes)};}
  async listProviders(){return this.#call('providers',{scoped:true});}
  async listModels(){return this.#call('models',{scoped:true});}
  listProjects(){return Promise.resolve([{directory:this.#directory}]);}

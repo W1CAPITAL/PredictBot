@@ -39,7 +39,7 @@ export class OpenCodeRuntime {
   child.once('error',()=>{failure=Error('O executável OpenCode não pôde iniciar.');});
   // Drain output; OpenCode can print its password. Never forward it to logs/UI.
   child.stdout.resume();child.stderr.resume();
-  const adapter=new OpenCodeAdapter({url:'http://127.0.0.1:'+port,password,directory,principal,stateDirectory});
+  const adapter=new OpenCodeAdapter({url:'http://127.0.0.1:'+port,password,directory,principal,stateDirectory,serverIdentity:'local:'+found.executable});
   try{
    for(let i=0;i<60;i++){
     if(failure)throw failure;if(child.exitCode!==null||child.signalCode!==null)throw Error('OpenCode encerrou durante a inicialização.');

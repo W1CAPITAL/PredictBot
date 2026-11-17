@@ -27,3 +27,9 @@ test('SSE entrega somente eventos da sessão autorizada',async()=>{
  const fetch=async url=>{const path=new URL(url).pathname;if(path==='/api/event')return new Response('data: {"type":"session.text.delta","data":{"sessionID":"ses_other","text":"private"}}\n\ndata: {"type":"session.text.delta","data":{"sessionID":"ses_test","text":"public"}}\n\n');return Response.json(path==='/doc'?{openapi:'3.1.0',paths:ssePaths}:path==='/api/info'?{version:'2.3.0'}:{data:{id:'ses_test'}});};
  const adapter=new OpenCodeAdapter({url:'http://127.0.0.1:4096',password:'synthetic',directory:'/tmp/p',principal,fetch});await adapter.createSession({});const events=[];for await(const event of adapter.streamEvents('ses_test'))events.push(event);assert.equal(events.length,1);assert.equal(events[0].data.text,'public');
 });
+test('identidade local estável recupera sessão mesmo quando a porta muda',async()=>{
+ const {mkdtemp,rm}=await import('node:fs/promises');const {tmpdir}=await import('node:os');const {join}=await import('node:path');const state=await mkdtemp(join(tmpdir(),'w1-port-'));
+ const fetch=async url=>Response.json(new URL(url).pathname==='/doc'?{openapi:'3.1.0',paths}:new URL(url).pathname==='/api/info'?{version:'2.3.0'}:{data:{id:'ses_stable'}});
+ const config={password:'synthetic',directory:'/tmp/p',principal,stateDirectory:state,serverIdentity:'local:approved-binary',fetch};
+ try{await new OpenCodeAdapter({...config,url:'http://127.0.0.1:41001'}).createSession({});assert.equal((await new OpenCodeAdapter({...config,url:'http://127.0.0.1:41002'}).getSession('ses_stable')).id,'ses_stable');}finally{await rm(state,{recursive:true,force:true});}
+});
