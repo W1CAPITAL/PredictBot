@@ -4,7 +4,7 @@ import {fail,tokenMatches} from '../src/relay/protocol.mjs';
 import {serveMcp} from './remote-mcp.mjs';
 import page from '../web/connect.html';
 import style from '../web/connect.css';
-import client from '../dist/connect.js';
+import client from '../dist/connect.txt';
 export {OpenCodeRelay};
 const encoder=new TextEncoder();
 const json=(value,status=200)=>Response.json(value,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});

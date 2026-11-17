@@ -65,7 +65,7 @@ A UI Hermes deve consumir esses estados reais. Não representar uma fila de tran
 - 35 testes do pacote passaram localmente, incluindo Worker/DO SQLite e persistência em reinício no Miniflare.
 - Smoke da ponte inteira com OpenCode 2.3.0 real passou: Worker → fila → cliente local → API → recibo. A identidade desse teste é sintética; não foi feito login na conta do usuário.
 - Nenhum prompt de inferência foi enviado, nenhum provedor pago ativado e nenhuma sessão Qoder iniciada.
-- Upload do Worker foi confirmado pela API Cloudflare. O acesso HTTP externo desta sessão recebeu bloqueio de rede/403 antes de validar o serviço; isso não é prova de funcionamento autenticado no navegador do usuário. É necessário parear uma sessão real para homologação final.
+- Upload do Worker foi confirmado pela API Cloudflare. Probes HTTP posteriores confirmaram `/health` 200/configurado, descoberta OAuth 200, MCP sem token 401 e ticket inválido 401. É necessário parear uma sessão real para homologar o acesso autenticado no navegador do usuário.
 - O instalador Windows e o fluxo visual no PC do usuário não foram testados por esta frente. O código foi integrado preservando o lote de staging da outra IA.
 
 Nenhum serviço é prometido como ilimitado. O novo Worker/DO utiliza o plano e as quotas já existentes da conta; não foi contratado upgrade.
