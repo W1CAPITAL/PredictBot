@@ -20,7 +20,8 @@ export class OpenCodeRelayClient{
  async tick(){
   if(!this.#active||this.#inFlight)return;this.#inFlight=true;const generation=this.#generation;
   try{
-   for(const receipt of [...this.#pending]){try{await this.#request('/v1/device/complete',receipt);}catch(error){if(![404,409].includes(error.status))throw error;}this.#pending.shift();}
+   for(const receipt of [...this.#pending]){try{await this.#request('/v1/device/complete',receipt);}catch(error){if(![404,409].includes(error.status))throw error;}if(generation!==this.#generation)return;this.#pending.shift();}
+   if(generation!==this.#generation||!this.#active)return;
    const response=await this.#request('/v1/device/poll',{});if(!this.#active||generation!==this.#generation)return;this.#delay=5000;this.#onState({state:response.state,connected:true});
    const job=response.job;if(!job)return;const checked=validateOperation(job.operation,job.input);
    if(this.#seen.has(job.id)){this.#pending.push({...this.#seen.get(job.id),lease:job.lease});return;}
@@ -36,8 +37,8 @@ export class OpenCodeRelayClient{
    }catch(error){receipt.status=error?.name==='TimeoutError'||error?.name==='TypeError'?'unknown':'failed';receipt.result={error:receipt.status==='unknown'?'O resultado da chamada não foi confirmado. Não repita automaticamente.':'A operação falhou ou foi recusada no computador.'};}
    if(generation!==this.#generation)return;
    if(this.#seen.size>500)this.#seen.delete(this.#seen.keys().next().value);
-   this.#pending.push(receipt);await this.#request('/v1/device/complete',receipt);this.#pending.shift();this.#onState({state:'approved',lastOperation:checked.operation,lastStatus:receipt.status});
-  }catch(error){this.#delay=Math.min(30000,this.#delay*2);this.#onState({state:'unavailable',message:error.status?'Ponte indisponível (HTTP '+error.status+').':'Falha de rede. A ponte tentará reconectar.'});if([401,403].includes(error.status))this.stop();}
+   this.#pending.push(receipt);await this.#request('/v1/device/complete',receipt);if(generation!==this.#generation)return;this.#pending.shift();this.#onState({state:'approved',lastOperation:checked.operation,lastStatus:receipt.status});
+  }catch(error){if(generation!==this.#generation)return;this.#delay=Math.min(30000,this.#delay*2);this.#onState({state:'unavailable',message:error.status?'Ponte indisponível (HTTP '+error.status+').':'Falha de rede. A ponte tentará reconectar.'});if([401,403].includes(error.status))this.stop();}
   finally{this.#inFlight=false;}
  }
  async #execute(action,input){const a=this.#adapter;switch(action){case 'health':return a.health();case 'version':return {version:(await a.health()).version};case 'providers':return a.listProviders();case 'models':return a.listModels();case 'projects':return a.listProjects();case 'sessions':return a.listSessions();case 'get':return a.getSession(input.sessionId);case 'messages':return a.getMessages(input.sessionId);case 'diff':return a.getDiff(input.sessionId);case 'mcp':return a.listMcpServers();case 'create':return a.createSession({...input,mode:'review'});case 'prompt':return a.sendPrompt(input.sessionId,input.text);case 'abort':return a.abortSession(input.sessionId);default:throw Error('Operação não autorizada.');}}
