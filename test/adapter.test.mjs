@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {OpenCodeAdapter,validateEndpoint,validateMcpConfig} from '../src/opencode-adapter.mjs';
 const principal={userId:'davi-test',companyId:'w1-test'};
-const paths={'/api/info':{get:{operationId:'server.info'}},'/api/session':{post:{operationId:'session.create'}},'/api/session/{sessionID}':{get:{operationId:'session.get'}},'/api/session/{sessionID}/prompt':{post:{operationId:'session.prompt'}},'/api/mcp':{get:{operationId:'mcp.list'}}};
+const paths={'/api/info':{get:{operationId:'server.info'}},'/api/session':{post:{operationId:'session.create'}},'/api/session/{sessionID}':{get:{operationId:'session.get'}},'/api/session/{sessionID}/prompt':{post:{operationId:'session.prompt'}},'/api/session/{sessionID}/model':{post:{operationId:'session.switchModel'}},'/api/mcp':{get:{operationId:'mcp.list'}}};
 function fixture(){const calls=[];const fetch=async(url,options={})=>{calls.push({url:String(url),...options});const p=new URL(url).pathname;return Response.json(p==='/doc'?{openapi:'3.1.0',paths}:p==='/api/info'?{version:'2.3.0'}:p==='/api/session'?{data:{id:'ses_test'}}:{data:{id:'ses_test'}});};return {calls,adapter:new OpenCodeAdapter({url:'http://127.0.0.1:4096',password:'fixture-only',directory:'/tmp/w1-fixture',principal,fetch})};}
 test('permite HTTP apenas loopback literal e recusa credenciais na URL',()=>{assert.throws(()=>validateEndpoint('http://remote.test'));assert.throws(()=>validateEndpoint('http://127.0.0.2'));assert.throws(()=>validateEndpoint('https://u:p@example.test'));assert.throws(()=>validateEndpoint('https://example.test/path'));assert.equal(validateEndpoint('http://127.0.0.1:4096').hostname,'127.0.0.1');});
 test('usa contrato /doc e protege autenticação de redirects',async()=>{const {adapter,calls}=fixture();assert.equal((await adapter.health()).version,'2.3.0');assert.ok(calls.every(c=>c.redirect==='error'));assert.ok(calls.every(c=>c.headers.Authorization.startsWith('Basic ')));});
@@ -38,4 +38,15 @@ test('listagens não expõem headers ou configurações secretas dos provedores'
  const fetch=async url=>Response.json(new URL(url).pathname==='/doc'?{openapi:'3.1.0',paths:secretPaths}:new URL(url).pathname==='/api/info'?{version:'2.3.0'}:{data:[{id:'demo',name:'Demo',headers:{Authorization:'synthetic-secret'},settings:{apiKey:'synthetic-secret'},body:{key:'synthetic-secret'}}]});
  const adapter=new OpenCodeAdapter({url:'http://127.0.0.1:4096',password:'synthetic',directory:'/tmp/p',principal,fetch});
  assert.ok(!JSON.stringify(await adapter.listProviders()).includes('synthetic-secret'));assert.ok(!JSON.stringify(await adapter.listModels()).includes('synthetic-secret'));
+});
+
+test('troca o modelo apenas na sessão autorizada e valida a referência do provedor',async()=>{
+ const {adapter,calls}=fixture();
+ await adapter.createSession({});
+ await adapter.switchModel('ses_test',{providerID:'w1-local',modelID:'bitnet-2b'});
+ const call=calls.find(c=>c.url.endsWith('/model'));
+ assert.equal(call.method,'POST');
+ assert.deepEqual(JSON.parse(call.body),{providerID:'w1-local',modelID:'bitnet-2b'});
+ await assert.rejects(()=>adapter.switchModel('ses_other',{providerID:'w1-local',modelID:'bitnet-2b'}),/autorizada/);
+ await assert.rejects(()=>adapter.switchModel('ses_test',{providerID:'bad/provider',modelID:'bitnet-2b'}),/inválido/);
 });
