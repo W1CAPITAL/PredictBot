@@ -2,6 +2,16 @@
 
 Módulo independente da W1 Capital para conectar um OpenCode instalado ou um servidor próprio autenticado. A interface de agentes do INFINITUM ainda não foi migrada para este repositório.
 
+<!-- W1_DISTRIBUICAO_INICIO -->
+## Distribuição e acesso
+
+O PredictBot possui um instalador Windows publicado com a [Central de Aplicativos W1](https://github.com/W1CAPITAL/Central-de-Apps): [PredictBot para Windows x64, prévia v0.1.48](https://github.com/W1CAPITAL/Central-de-Apps/releases/download/preview-v0.1.48/PredictBot-Setup-0.1.48-x64.exe). OpenCode e os modelos de IA continuam exigindo configuração própria.
+
+[Releases disponíveis](https://github.com/W1CAPITAL/Central-de-Apps/releases) · [Catálogo do ecossistema](https://github.com/W1CAPITAL/Central-de-Apps/blob/main/docs/ECOSSISTEMA-W1.md) · [Central de Aplicativos W1 — Windows x64, prévia v0.1.48](https://github.com/W1CAPITAL/Central-de-Apps/releases/download/preview-v0.1.48/W1-Central-de-Apps-Setup-0.1.48-x64.exe)
+
+**Nota de distribuição:** os arquivos indicados são pré-releases de teste. Consulte as assinaturas, os hashes e a publicação mais recente antes da instalação; versões de teste não entram automaticamente no canal de atualização assinada.
+<!-- W1_DISTRIBUICAO_FIM -->
+
 ## O que funciona neste lote
 
 - Adaptador HTTP V1/V2 orientado ao contrato da versão instalada.
