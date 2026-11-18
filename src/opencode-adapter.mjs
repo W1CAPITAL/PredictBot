@@ -31,7 +31,7 @@ export function validateMcpConfig(config,allowLocal=false){
  return structuredClone(config);
 }
 const V1={health:['get','/global/health'],providers:['get','/provider'],projects:['get','/project'],create:['post','/session'],get:['get','/session/{id}'],messages:['get','/session/{id}/message'],diff:['get','/session/{id}/diff'],prompt:['post','/session/{id}/prompt_async'],abort:['post','/session/{id}/abort'],mcp:['get','/mcp'],events:['get','/event']};
-const V2={events:'event.subscribe',health:'server.info',models:'model.list',providers:'provider.list',projects:'project.list',create:'session.create',get:'session.get',messages:'session.message.list',diff:'session.diff',prompt:'session.prompt',abort:'session.interrupt',mcp:'mcp.list',mcpAdd:'experimental.mcp.add',mcpRemove:'experimental.mcp.remove',mcpConnect:'experimental.mcp.connect',mcpDisconnect:'experimental.mcp.disconnect'};
+const V2={events:'event.subscribe',health:'server.info',models:'model.list',providers:'provider.list',projects:'project.list',create:'session.create',get:'session.get',messages:'session.message.list',diff:'session.diff',prompt:'session.prompt',abort:'session.interrupt',mcp:'mcp.list',mcpAdd:'experimental.mcp.add',mcpRemove:'experimental.mcp.remove',mcpConnect:'experimental.mcp.connect',mcpDisconnect:'experimental.mcp.disconnect',sessionModel:'session.switchModel'};
 export class OpenCodeAdapter {
  #url;#password;#fetch;#principal;#directory;#ledger;#sessions=new Set();#routes;#version;#save=Promise.resolve();#audit;#connecting;#stateDirectory;#serverIdentity;
  constructor({url,password,directory,principal,stateDirectory,serverIdentity,fetch:fetchFn=globalThis.fetch,audit=()=>{}}){
@@ -122,6 +122,12 @@ export class OpenCodeAdapter {
  async getMessages(id){await this.#own(id);return this.#call('messages',{id});}
  async getDiff(id){await this.#own(id);return this.#call('diff',{id});}
  async abortSession(id){await this.#own(id);return this.#call('abort',{id});}
+ async switchModel(id,model){
+  await this.#own(id);
+  if(!this.#version.startsWith('2.'))throw Error('Seleção de modelo requer OpenCode V2.');
+  if(!model||typeof model!=='object'||!(/^[a-z0-9_-]{1,64}$/i.test(model.providerID||''))||typeof model.modelID!=='string'||!model.modelID.trim()||model.modelID.length>256||/[\r\n\0]/.test(model.modelID))throw Error('Modelo OpenCode inválido.');
+  return this.#call('sessionModel',{id,body:{providerID:model.providerID,modelID:model.modelID}});
+ }
  async sendPrompt(id,text){await this.#own(id);if(typeof text!=='string'||!text.trim()||text.length>32000)throw Error('Prompt deve ter entre 1 e 32.000 caracteres.');await this.#connect();return this.#call('prompt',{id,body:this.#version.startsWith('2.')?{text}:{parts:[{type:'text',text}]}});}
  async *streamEvents(id,{signal}={}){
   await this.#own(id);await this.#connect();const route=this.#routes.events;
