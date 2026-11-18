@@ -1,5 +1,9 @@
 name: Compilar BitNet Windows CPU (manual)
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build-bitnet-windows.yml'
   workflow_dispatch:
 
 permissions:
