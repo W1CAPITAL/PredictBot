@@ -31,6 +31,14 @@ function windowsCliPaths(env) {
  }
  return candidates;
 }
+export function createLocalAIEnvironment(localAI){
+ if(localAI===undefined||localAI===null)return {};
+ if(!localAI||typeof localAI!=='object'||Array.isArray(localAI))throw Error('Configuração de IA local inválida.');
+ const configPath=localAI.configPath,apiKey=localAI.apiKey;
+ if(typeof configPath!=='string'||configPath.includes('\\0')||!(isAbsolute(configPath)||win32.isAbsolute(configPath)))throw Error('Caminho da configuração de IA local deve ser absoluto.');
+ if(typeof apiKey!=='string'||!/^[a-f0-9]{48,128}$/i.test(apiKey))throw Error('Chave da IA local inválida.');
+ return {OPENCODE_CONFIG:configPath,W1_LOCAL_AI_KEY:apiKey};
+}
 export async function detectOpenCode({executable,path=process.env.PATH||'',platform=process.platform}={}){
  const name=platform==='win32'?'opencode.exe':'opencode';
  if (typeof executable === 'string') executable = executable.trim().replace(/^"(.*)"$/, '$1');
@@ -51,15 +59,15 @@ export async function detectOpenCode({executable,path=process.env.PATH||'',platf
 async function freePort(){const server=createServer();await new Promise((ok,no)=>server.once('error',no).listen(0,'127.0.0.1',ok));const port=server.address().port;await new Promise(ok=>server.close(ok));return port;}
 export class OpenCodeRuntime {
  #child;#record;#starting;
- async start({executable,directory,principal,stateDirectory}={}){
+ async start({executable,directory,principal,stateDirectory,localAI}={}){
   if(this.#starting)return this.#starting;
   if(this.#record){await this.#record.adapter.health();return this.#record;}
-  this.#starting=this.#start({executable,directory,principal,stateDirectory}).finally(()=>{this.#starting=null});return this.#starting;
+  this.#starting=this.#start({executable,directory,principal,stateDirectory,localAI}).finally(()=>{this.#starting=null});return this.#starting;
  }
- async #start({executable,directory,principal,stateDirectory}){
+ async #start({executable,directory,principal,stateDirectory,localAI}){
   const found=await detectOpenCode({executable});if(!found.installed)throw Error(found.message);
   const port=await freePort(),password=randomBytes(32).toString('base64url');
-  const env={...process.env,OPENCODE_PASSWORD:password,OPENCODE_SERVER_PASSWORD:password};
+  const env={...process.env,...createLocalAIEnvironment(localAI),OPENCODE_PASSWORD:password,OPENCODE_SERVER_PASSWORD:password};
   for(const name of ['NODE_OPTIONS','NODE_PATH','ELECTRON_RUN_AS_NODE','OPENCODE_SERVER_USERNAME'])delete env[name];
   const child=spawn(found.executable,['serve','--hostname','127.0.0.1','--port',String(port)],{cwd:directory,env,shell:false,windowsHide:true,stdio:['ignore','pipe','pipe']});
   this.#child=child;let failure;
