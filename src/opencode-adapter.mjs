@@ -125,7 +125,7 @@ export class OpenCodeAdapter {
  async switchModel(id,model){
   await this.#own(id);
   if(!this.#version.startsWith('2.'))throw Error('Seleção de modelo requer OpenCode V2.');
-  if(!model||typeof model!=='object'||!(/^[a-z0-9_-]{1,64}$/i.test(model.providerID||''))||typeof model.modelID!=='string'||!model.modelID.trim()||model.modelID.length>256||/[\\r\\n\\0]/.test(model.modelID))throw Error('Modelo OpenCode inválido.');
+  if(!model||typeof model!=='object'||!(/^[a-z0-9_-]{1,64}$/i.test(model.providerID||''))||typeof model.modelID!=='string'||!model.modelID.trim()||model.modelID.length>256||/[\r\n\0]/.test(model.modelID))throw Error('Modelo OpenCode inválido.');
   return this.#call('sessionModel',{id,body:{providerID:model.providerID,modelID:model.modelID}});
  }
  async sendPrompt(id,text){await this.#own(id);if(typeof text!=='string'||!text.trim()||text.length>32000)throw Error('Prompt deve ter entre 1 e 32.000 caracteres.');await this.#connect();return this.#call('prompt',{id,body:this.#version.startsWith('2.')?{text}:{parts:[{type:'text',text}]}});}
