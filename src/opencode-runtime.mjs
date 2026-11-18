@@ -8,18 +8,40 @@ import {randomBytes} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
 import {OpenCodeAdapter} from './opencode-adapter.mjs';
 const exec=promisify(execFile);
+function windowsCliPaths(env) {
+ const candidates = [];
+ const add = (base, ...parts) => {
+  if (base && isAbsolute(base)) candidates.push(join(base, ...parts));
+ };
+ for (const folder of ['@opencodedesktop', '@opencode-aidesktop', 'OpenCode']) {
+  add(env.LOCALAPPDATA, 'Programs', folder, 'resources', 'opencode-cli.exe');
+  add(env.ProgramFiles, folder, 'resources', 'opencode-cli.exe');
+ }
+ add(env.LOCALAPPDATA, 'OpenCode', 'opencode-cli.exe');
+ add(env.USERPROFILE, '.opencode', 'bin', 'opencode.exe');
+ add(env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links', 'opencode.exe');
+ add(env.USERPROFILE, 'scoop', 'apps', 'opencode', 'current', 'opencode.exe');
+ const arch = process.arch;
+ for (const suffix of ['', '-baseline']) {
+   add(env.APPDATA, 'npm', 'node_modules', 'opencode-ai', 'node_modules', 'opencode-windows-' + arch + suffix, 'bin', 'opencode.exe');
+   add(env.APPDATA, 'npm', 'node_modules', 'opencode-windows-' + arch + suffix, 'bin', 'opencode.exe');
+ }
+ return candidates;
+}
 export async function detectOpenCode({executable,path=process.env.PATH||'',platform=process.platform}={}){
  const name=platform==='win32'?'opencode.exe':'opencode';
  const candidates=executable?[executable]:path.split(delimiter).filter(p=>isAbsolute(p)).map(p=>join(p,name));
- for(const candidate of candidates){
+ if(!executable && platform==='win32') candidates.unshift(...windowsCliPaths(process.env));
+ let foundFile=false;
+ for(const candidate of new Set(candidates)){
   if(!isAbsolute(candidate)||candidate.includes('\0')||(platform==='win32'&&!/\.exe$/i.test(candidate)))continue;
-  try{await access(candidate,constants.X_OK);const binary=await realpath(candidate);
+  try{await access(candidate,constants.X_OK);const binary=await realpath(candidate);foundFile=true;
    const {stdout}=await exec(binary,['--version'],{shell:false,windowsHide:true,timeout:5000,maxBuffer:8192});
    const version=stdout.trim().replace(/^opencode v?/,'').replace(/^v/,'');if(!/^[12]\.\d+\.\d+(?:[-+][\w.-]+)?$/.test(version))continue;
    return {installed:true,executable:binary,version};
   }catch{}
  }
- return {installed:false,message:'OpenCode não encontrado. Selecione o executável instalado.'};
+ return {installed:false,message:foundFile?'O executável foi encontrado, mas não respondeu com uma versão compatível. Selecione o arquivo da CLI do OpenCode.':'Não encontrei a CLI do OpenCode. Informe o caminho completo de opencode-cli.exe ou opencode.exe.'};
 }
 async function freePort(){const server=createServer();await new Promise((ok,no)=>server.once('error',no).listen(0,'127.0.0.1',ok));const port=server.address().port;await new Promise(ok=>server.close(ok));return port;}
 export class OpenCodeRuntime {
