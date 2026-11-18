@@ -56,6 +56,8 @@ Escrita: `create`, `prompt`, `abort`. Cada escrita requer escopo do dispositivo 
 
 `succeeded` comprova resposta da API, inclusive aceite de prompt; o estado do trabalho do modelo deve ser consultado separadamente. Não converter aceite em conclusão de tarefa, review ou teste. O outro sistema deve persistir seu próprio run/step e recibo, porque a fila de transporte remove jobs após 15 minutos.
 
+Recibos acima de 64.000 bytes UTF-8, contando o envelope completo, são resumidos antes do envio ao Worker (limite de 64 KiB). `result.truncated=true` informa que os detalhes devem ser consultados no OpenCode local. O resumo preserva `accepted` quando booleano e `id`/`sessionId` quando identificadores de sessão válidos e limitados. Uma resposta confirmada continua `succeeded`; truncamento não prova falha e não autoriza repetir a operação.
+
 Lease expirado de leitura pode voltar à fila. Lease expirado de `create/prompt/abort` vira `unknown` e não é repetido automaticamente. Recibo tardio autenticado pode confirmar escrita sem executá-la novamente. Chave de idempotência reutilizada com conteúdo diferente recebe conflito. Revogação bloqueia polls e cancela trabalho ainda não executado. Operações já iniciadas no OpenCode precisam de cancelamento explícito; desligar a ponte não prova cancelamento do modelo.
 
 A UI Hermes deve consumir esses estados reais. Não representar uma fila de transporte como memória permanente ou motor de workflows de negócio.

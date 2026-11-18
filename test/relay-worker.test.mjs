@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {Miniflare} from 'miniflare';
 import {mkdtemp,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';
+import {OpenCodeRelayClient} from '../src/relay/client.mjs';
 const binding={RELAY_SIGNING_KEY:'synthetic-test-signing-key-32-bytes',SUPABASE_URL:'https://auth.example.test',SUPABASE_PUBLISHABLE_KEY:'synthetic-publishable'};
 function bearer({user='user-a',oauth=false}={}){return 'Bearer '+Buffer.from('{}').toString('base64url')+'.'+Buffer.from(JSON.stringify({sub:user,iss:binding.SUPABASE_URL+'/auth/v1',aud:'authenticated',exp:Date.now()/1000+3600,aal:'aal2',...(oauth?{client_id:'client-allowed'}:{})})).toString('base64url')+'.synthetic-signature';}
 function runtime(persist){return new Miniflare({modules:true,scriptPath:'dist/worker.mjs',compatibilityDate:'2026-07-28',compatibilityFlags:['nodejs_compat'],bindings:binding,durableObjects:{RELAY:{className:'OpenCodeRelay',useSQLite:true}},durableObjectsPersist:persist,outboundService:async request=>{const path=new URL(request.url).pathname;const claims=JSON.parse(Buffer.from(request.headers.get('authorization').slice(7).split('.')[1],'base64url').toString());return Response.json(path==='/auth/v1/user'?{id:claims.sub}:path.includes('/usuarios')?[{empresa_id:claims.sub==='user-a'?'company-a':'company-b'}]:path.includes('policies')?[{config:{mcp_enabled:true,mcp_allowed_client_ids:['client-allowed']}}]:true);}});}
@@ -21,6 +22,18 @@ test('Worker autentica MCP, pareia dispositivo, executa fila e persiste em reinÃ
   const poll=await call(mf,'/v1/device/poll',{},credential);assert.equal(poll.data.job.operation,'health');
   await call(mf,'/v1/device/complete',{jobId:key,lease:poll.data.job.lease,status:'succeeded',result:{healthy:true}},credential);
   assert.equal((await call(mf,'/v1/task',{jobId:key},bearer({user:'user-b'}))).status>=400,true);
+  // Exercise the public Worker's actual body parser, not only a mock fetch.
+  const largePair=await call(mf,'/v1/pair',{scopes:['read']});
+  const client=new OpenCodeRelayClient({url:'https://relay.test',fetch:(url,options)=>mf.dispatchFetch(url,options)});
+  try{
+   const device=await client.pair({pairingCode:largePair.data.pairingCode,name:'Large receipt',adapter:{forPrincipal(){return this;},health:async()=>({healthy:true,details:'èª'.repeat(23000)})}});
+   await call(mf,'/v1/approve',{deviceId:device.deviceId,confirmation:device.confirmation});
+   const largeKey=crypto.randomUUID();
+   await call(mf,'/v1/jobs',{deviceId:device.deviceId,key:largeKey,operation:'health',input:{}});
+   await client.tick();
+   const largeTask=await call(mf,'/v1/task',{jobId:largeKey});
+   assert.equal(largeTask.data.status,'succeeded');assert.equal(largeTask.data.result.truncated,true);
+  }finally{client.stop();}
   await mf.dispose();mf=runtime(dir);
   assert.equal((await call(mf,'/v1/task',{jobId:key})).data.result.healthy,true);
   await call(mf,'/v1/revoke',{deviceId:claim.data.deviceId});assert.equal((await call(mf,'/v1/device/poll',{},credential)).status>=400,true);
