@@ -8,14 +8,17 @@ import {randomBytes} from 'node:crypto';
 import {setTimeout as delay} from 'node:timers/promises';
 import {OpenCodeAdapter} from './opencode-adapter.mjs';
 const exec=promisify(execFile);
+function desktopCliPaths(directory) {
+ return ['', 'resources', 'bin', join('resources', 'bin')].map(folder => join(directory, folder, 'opencode-cli.exe'));
+}
 function windowsCliPaths(env) {
  const candidates = [];
  const add = (base, ...parts) => {
   if (base && isAbsolute(base)) candidates.push(join(base, ...parts));
  };
- for (const folder of ['@opencodedesktop', '@opencode-aidesktop', 'OpenCode']) {
-  add(env.LOCALAPPDATA, 'Programs', folder, 'resources', 'opencode-cli.exe');
-  add(env.ProgramFiles, folder, 'resources', 'opencode-cli.exe');
+ for (const folder of ['ai.opencode.desktop', '@opencodedesktop', '@opencode-aidesktop', 'OpenCode']) {
+  if (env.LOCALAPPDATA && isAbsolute(env.LOCALAPPDATA)) candidates.push(...desktopCliPaths(join(env.LOCALAPPDATA, 'Programs', folder)));
+  if (env.ProgramFiles && isAbsolute(env.ProgramFiles)) candidates.push(...desktopCliPaths(join(env.ProgramFiles, folder)));
  }
  add(env.LOCALAPPDATA, 'OpenCode', 'opencode-cli.exe');
  add(env.USERPROFILE, '.opencode', 'bin', 'opencode.exe');
@@ -30,7 +33,9 @@ function windowsCliPaths(env) {
 }
 export async function detectOpenCode({executable,path=process.env.PATH||'',platform=process.platform}={}){
  const name=platform==='win32'?'opencode.exe':'opencode';
- const candidates=executable?[executable]:path.split(delimiter).filter(p=>isAbsolute(p)).map(p=>join(p,name));
+ if (typeof executable === 'string') executable = executable.trim().replace(/^"(.*)"$/, '$1');
+ const explicitDirectory = executable && platform === 'win32' && isAbsolute(executable) && !/\.exe$/i.test(executable);
+ const candidates=executable?(explicitDirectory?desktopCliPaths(executable):[executable]):path.split(delimiter).filter(p=>isAbsolute(p)).map(p=>join(p,name));
  if(!executable && platform==='win32') candidates.unshift(...windowsCliPaths(process.env));
  let foundFile=false;
  for(const candidate of new Set(candidates)){
