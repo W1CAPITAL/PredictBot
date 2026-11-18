@@ -1,50 +1,35 @@
-# IA local W1: BitNet + Colibri + Ollama
+# IA local W1 — instalação gerenciada pela Central
 
-Esta integração oferece a API de chat `/v1/chat/completions`, compatível com clientes OpenAI, sem utilizar inferência paga. Ela **não roda Grok 4.6**, nem promete inteligência equivalente. O BitNet b1.58 2B-4T possui 2,4 bilhões de parâmetros. Em um i3 com 8 GB, desempenho e compatibilidade dependem da geração do processador e da versão do binário.
+A instalação do Microsoft BitNet deixou de ser uma configuração manual dentro deste repositório. O **Central de Apps da W1** gerencia o download, a verificação e a inicialização do motor local, compartilhado com o PredictBot independente.
 
-## Passo 1: preparar o BitNet da Microsoft
+## Como funciona
 
-Repositório oficial: https://github.com/microsoft/BitNet
+- No primeiro uso do PredictBot, a Central inicia automaticamente a preparação e exibe o progresso.
+- Baixa o executável CPU x64 do llama.cpp e o modelo oficial Microsoft BitNet b1.58 2B-4T em GGUF.
+- Confere o tamanho e o SHA-256 dos dois arquivos antes de instalar.
+- Armazena os arquivos em `%LOCALAPPDATA%\W1 Capital\Local AI`, compartilhados entre as janelas W1.
+- Inicia o motor apenas em `127.0.0.1`, com chave local, contexto de 1.024 tokens, até duas threads e uma geração por vez.
+- Descarrega os pesos da memória após cinco minutos sem uso.
+- Configura o provedor OpenCode em arquivo isolado, sem alterar o modelo padrão nem a configuração global do usuário.
 
-Baixe o projeto em `%USERPROFILE%\BitNet`. O upstream exige Python, CMake, Visual Studio 2022 com ferramentas C++/Clang no Windows. Recomenda-se compilar em outro computador ou num job de CI específico de compilação (não de inferência contínua), pois compilar no i3 consome bastante memória.
+## Uso no PredictBot
 
-Modelo GGUF oficial: https://huggingface.co/microsoft/BitNet-b1.58-2B-4T-gguf
+Depois da preparação, conecte ou reconecte o OpenCode. O modelo `w1-local/bitnet-2b` aparece no seletor de modelo da sessão. É possível usar BitNet em uma sessão e manter GPT 6.2 Astra em outra.
 
-O script espera o arquivo `models\BitNet-b1.58-2B-4T\ggml-model-i2_s.gguf` e o executável `build\bin\Release\llama-server.exe` dentro da pasta do BitNet. Os pesos **não estão incluídos** no PredictBot. O iniciador verifica a presença dos arquivos e não tenta downloads inesperados.
+BitNet está configurado como modelo de texto, sem tool-calling. Use Astra ou outro modelo com suporte a ferramentas para agentes, programação e operações MCP.
 
-No PowerShell, na pasta do PredictBot:
+## Custos e limites
 
-```powershell
-powershell -NoProfile -File .\bin\start-bitnet-windows.ps1 -BitNetDir "$env:USERPROFILE\BitNet" -Threads 2 -Context 1024
-```
+- A primeira instalação baixa aproximadamente 1,22 GB.
+- Depois do download, a inferência é local e não consome créditos de API.
+- O computador continua usando CPU e RAM; isso não representa computação infinita.
+- O modelo tem cerca de 2 bilhões de parâmetros e **não equivale ao Grok 4.6 ou ao GPT 6.2 Astra**.
+- O Central usa o executável CPU do llama.cpp com os pesos GGUF oficiais. O runtime otimizado bitnet.cpp da Microsoft não está incluído nesta distribuição Windows.
 
-O servidor oficial será iniciado em `http://127.0.0.1:8080`. Se o seu i3 for antigo, verifique suporte a instruções x86 exigidas pelo binário, especialmente AVX2.
+## Fontes oficiais
 
-## Passo 2: iniciar a ponte local do PredictBot
+- Microsoft BitNet: https://github.com/microsoft/BitNet
+- Modelo Microsoft BitNet GGUF: https://huggingface.co/microsoft/bitnet-b1.58-2B-4T-gguf
+- llama.cpp: https://github.com/ggml-org/llama.cpp
 
-Em um segundo terminal, com Node.js 22+:
-
-```powershell
-npm run start:local-ai
-```
-
-A URL-base será `http://127.0.0.1:8765/v1`; use o modelo `w1-local-auto` e a chave exibida pelo terminal para configurar um cliente compatível com OpenAI. A chave aleatória não deve ser publicada. Para persistir uma chave local, utilize a variável de ambiente `W1_LOCAL_AI_KEY`.
-
-O gateway prefere o BitNet e permite os seguintes motores opcionais:
-
-- Colibri: `W1_COLIBRI_URL=http://127.0.0.1:PORTA`; exige endpoints compatíveis com `/v1/models` e `/v1/chat/completions`.
-- Ollama: defina `W1_OLLAMA_MODEL` com um modelo instalado; usa a API local da porta 11434.
-- BitNet: `W1_BITNET_URL` substitui a porta 8080, quando necessário.
-
-Somente URLs HTTP no próprio computador são aceitas. **Nada é enviado a provedores externos pelo gateway**. A porta não é publicada na internet, as chamadas exigem uma chave e apenas uma geração ocorre por vez.
-
-## Limitações atuais
-
-- Sem streaming de tokens; no máximo 12 mil caracteres de entrada e 512 tokens de saída por resposta.
-- Requer que BitNet, Ollama ou Colibri estejam instalados e funcionando separadamente. Esta contribuição adiciona a ponte e o iniciador, mas não instala pesos nem compila o BitNet no PC.
-- Colibri com modelos grandes é inadequado para a meta de 8 GB em uso normal; ainda requer SSD, RAM e CPU.
-- O serviço é executado localmente, portanto consome CPU e RAM. **Gratuidade de API não significa computação infinita sem hardware.**
-- GitHub é usado para código, builds e releases, e Cloudflare pode servir como transporte dentro das franquias. Nenhum dos dois é servidor de inferência ilimitado e gratuito.
-- Testes: `node --test test/local-ai.test.mjs`. São testes com motores falsos locais e **não substituem um teste real em Windows i3**.
-
-Fontes: https://github.com/microsoft/BitNet e https://github.com/JustVugg/colibri.
+Não execute scripts de compilação ou inicialização manual deste repositório para preparar a IA local. A Central é responsável por isso.
