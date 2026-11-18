@@ -43,10 +43,10 @@ test('listagens não expõem headers ou configurações secretas dos provedores'
 test('troca o modelo apenas na sessão autorizada e valida a referência do provedor',async()=>{
  const {adapter,calls}=fixture();
  await adapter.createSession({});
- await adapter.switchModel('ses_test',{providerID:'w1-local',modelID:'bitnet-2b'});
+ await adapter.switchModel('ses_test',{providerID:'w1-local',id:'w1-local/bitnet-2b'});
  const call=calls.find(c=>c.url.endsWith('/model'));
  assert.equal(call.method,'POST');
- assert.deepEqual(JSON.parse(call.body),{providerID:'w1-local',modelID:'bitnet-2b'});
+ assert.deepEqual(JSON.parse(call.body),{model:{providerID:'w1-local',id:'w1-local/bitnet-2b'}});
  await assert.rejects(()=>adapter.switchModel('ses_other',{providerID:'w1-local',modelID:'bitnet-2b'}),/autorizada/);
- await assert.rejects(()=>adapter.switchModel('ses_test',{providerID:'bad/provider',modelID:'bitnet-2b'}),/inválido/);
+ await assert.rejects(()=>adapter.switchModel('ses_test',{providerID:'bad/provider',id:'w1-local/bitnet-2b'}),/inválido/);
 });
