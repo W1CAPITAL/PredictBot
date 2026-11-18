@@ -7,29 +7,25 @@
     ".": "./src/opencode-adapter.mjs",
     "./runtime": "./src/opencode-runtime.mjs",
     "./mcp": "./src/mcp-server.mjs",
-    "./relay": "./src/relay/client.mjs",
-    "./local-ai": "./src/local-ai.mjs"
+    "./relay": "./src/relay/client.mjs"
   },
   "bin": {
-    "w1-opencode-mcp": "./src/cli.mjs",
-    "w1-local-ai": "./bin/w1-local-ai.mjs"
+    "w1-opencode-mcp": "./src/cli.mjs"
   },
   "files": [
     "src",
     "docs",
-    "README.md",
-    "bin"
+    "README.md"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
     "test": "node --test test/*.test.mjs",
-    "check": "node --check src/opencode-adapter.mjs && node --check src/opencode-runtime.mjs && node --check src/mcp-server.mjs && node --check src/cli.mjs && node --check src/relay/client.mjs && node --check src/relay/auth.mjs && node --check workers/worker.mjs && node --check src/local-ai.mjs && node --check bin/w1-local-ai.mjs",
+    "check": "node --check src/opencode-adapter.mjs && node --check src/opencode-runtime.mjs && node --check src/mcp-server.mjs && node --check src/cli.mjs && node --check src/relay/client.mjs && node --check src/relay/auth.mjs && node --check workers/worker.mjs",
     "test:live": "node scripts/live-smoke.mjs",
     "build:relay": "node scripts/build-relay.mjs",
-    "pretest": "npm run build:relay",
-    "start:local-ai": "node bin/w1-local-ai.mjs"
+    "pretest": "npm run build:relay"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
