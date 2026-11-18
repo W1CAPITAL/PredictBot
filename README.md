@@ -1,15 +1,13 @@
-# PredictBot · integração OpenCode
+# PredictBot
 
-Módulo independente da W1 Capital para conectar um OpenCode instalado ou um servidor próprio autenticado. A interface de agentes do INFINITUM ainda não foi migrada para este repositório.
+O PredictBot é o projeto da W1 Capital para reunir a experiência do OpenMausBot e do GrokBot, o OpenBot, a área de agentes do INFINITUM, o Hermes 3D e o PredictLM. A versão desktop atual oferece sessões, tarefas e a conexão OpenCode/MCP. A área de agentes, o Hermes e os módulos do PredictLM ainda estão no [INFINITUM](https://github.com/W1CAPITAL/Infinitum).
 
 <!-- W1_DISTRIBUICAO_INICIO -->
-## Distribuição e acesso
+## Instalar no Windows
 
-O PredictBot possui um instalador Windows publicado com a [Central de Aplicativos W1](https://github.com/W1CAPITAL/Central-de-Apps): [PredictBot para Windows x64, prévia v0.1.48](https://github.com/W1CAPITAL/Central-de-Apps/releases/download/preview-v0.1.48/PredictBot-Setup-0.1.48-x64.exe). OpenCode e os modelos de IA continuam exigindo configuração própria.
+Abra a [versão estável da Central de Apps](https://github.com/W1CAPITAL/Central-de-Apps/releases/latest) e baixe o arquivo `PredictBot-Setup-…-x64.exe` para usar o aplicativo independente. Para abrir pelo catálogo W1, baixe o instalador da Central na mesma página.
 
-[Releases disponíveis](https://github.com/W1CAPITAL/Central-de-Apps/releases) · [Catálogo do ecossistema](https://github.com/W1CAPITAL/Central-de-Apps/blob/main/docs/ECOSSISTEMA-W1.md) · [Central de Aplicativos W1 — Windows x64, prévia v0.1.48](https://github.com/W1CAPITAL/Central-de-Apps/releases/download/preview-v0.1.48/W1-Central-de-Apps-Setup-0.1.48-x64.exe)
-
-**Nota de distribuição:** os arquivos indicados são pré-releases de teste. Consulte as assinaturas, os hashes e a publicação mais recente antes da instalação; versões de teste não entram automaticamente no canal de atualização assinada.
+A partir da versão 0.1.129, **Configurar automaticamente** procura a CLI também na pasta `%LOCALAPPDATA%\Programs\ai.opencode.desktop`. Em instalações personalizadas, cole o caminho da pasta ou escolha o arquivo `opencode-cli.exe`. O PredictBot verifica a versão do executável antes da conexão.
 <!-- W1_DISTRIBUICAO_FIM -->
 
 ## O que funciona neste lote
