@@ -1,0 +1,65 @@
+name: Compilar BitNet Windows CPU (manual)
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-bitnet:
+    runs-on: windows-2022
+    timeout-minutes: 60
+    steps:
+      - name: Obter motor oficial Microsoft BitNet
+        uses: actions/checkout@v4
+        with:
+          repository: microsoft/BitNet
+          submodules: recursive
+          path: BitNet
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Ativar compilador Visual Studio
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Instalar dependencias de compilacao
+        working-directory: BitNet
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install 3rdparty/llama.cpp/gguf-py
+
+      - name: Gerar kernels do BitNet 2B (CPU x86)
+        working-directory: BitNet
+        shell: pwsh
+        run: |
+          python utils/codegen_tl2.py --model bitnet_b1_58-3B --BM '160,320,320' --BK '96,96,96' --bm '32,32,32'
+
+      - name: Compilar llama-server otimizado
+        working-directory: BitNet
+        shell: pwsh
+        run: |
+          cmake -B build -T ClangCL -DBITNET_X86_TL2=OFF -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLAMA_BUILD_TOOLS=ON -DLLAMA_BUILD_EXAMPLES=ON -DLLAMA_BUILD_COMMON=ON -DLLAMA_BUILD_SERVER=ON
+          if ($LASTEXITCODE -ne 0) { throw 'Falha no CMake' }
+          cmake --build build --config Release --parallel 2 --target llama-server
+          if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao' }
+
+      - name: Verificar binario
+        working-directory: BitNet
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'build/bin/Release/llama-server.exe')) { throw 'Servidor nao gerado' }
+
+      - name: Publicar binario de Windows como artefato de compilacao
+        uses: actions/upload-artifact@v4
+        with:
+          name: bitnet-2b-windows-x64-cpu
+          path: |
+            BitNet/build/bin/Release/**
+            BitNet/run_inference_server.py
+          retention-days: 7
+          if-no-files-found: error
