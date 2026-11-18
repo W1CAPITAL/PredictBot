@@ -36,7 +36,12 @@ export class OpenCodeRelayClient{
     // Once a write reaches the adapter, an error cannot prove absence of effects.
     attempted=true;
     receipt.result=await this.#execute(checked.operation,checked.input);receipt.status='succeeded';
-    if(JSON.stringify(receipt.result).length>240000){receipt.status='failed';receipt.result={error:'Resultado maior que o limite da ponte. Consulte o OpenCode local.'};}
+    if(JSON.stringify(receipt.result).length>240000){
+     const result=receipt.result;
+     receipt.result={truncated:true,message:'O OpenCode confirmou a chamada. A resposta excedeu o limite da ponte; consulte os detalhes no OpenCode local.'};
+     if(typeof result?.accepted==='boolean')receipt.result.accepted=result.accepted;
+     for(const key of ['id','sessionId'])if(typeof result?.[key]==='string'&&/^ses_[A-Za-z0-9_-]{1,200}$/.test(result[key]))receipt.result[key]=result[key];
+    }
    }catch(error){receipt.status=(attempted&&checked.scope==='execute')||error?.name==='TimeoutError'||error?.name==='TypeError'?'unknown':'failed';receipt.result={error:receipt.status==='unknown'?'O resultado da chamada não foi confirmado. Não repita automaticamente.':'A operação falhou ou foi recusada no computador.'};}
    if(generation!==this.#generation)return;
    if(this.#seen.size>500)this.#seen.delete(this.#seen.keys().next().value);
