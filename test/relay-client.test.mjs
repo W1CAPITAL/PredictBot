@@ -16,6 +16,18 @@ test('resposta grande de escrita confirmada conserva sucesso e identificador par
   assert.ok(JSON.stringify(receipt.result).length<2000);assert.equal(attempts,1);
  }finally{f.client.stop();}
 });
+for(const details of ['x'.repeat(70000),'語'.repeat(23000)])test('recibo cabe no limite real de 64 KiB do Worker, incluindo UTF-8',async()=>{
+ const job={id:'job-worker-limit',operation:'prompt',input:{sessionId:'ses_test',text:'synthetic'},lease:'synthetic-lease',expiresAt:Date.now()+60000};
+ const f=fixture(job,async()=>true);let attempts=0;
+ f.adapter.sendPrompt=async()=>{attempts++;return {accepted:true,sessionId:'ses_test',details};};
+ try{
+  await f.client.pair({pairingCode:'synthetic',name:'test',adapter:f.adapter});await f.client.tick();await f.client.tick();
+  const receipt=f.calls.find(x=>x.path.endsWith('/complete')).body;
+  assert.ok(new TextEncoder().encode(JSON.stringify(receipt)).byteLength<65536);
+  assert.equal(receipt.status,'succeeded');assert.equal(receipt.result.truncated,true);
+  assert.equal(receipt.result.sessionId,'ses_test');assert.equal(attempts,1);
+ }finally{f.client.stop();}
+});
 test('resposta atrasada de dispositivo anterior não derruba novo pareamento',async()=>{
  let release,polls=0,claims=0;const fetch=async(url)=>{const path=new URL(url).pathname;if(path==='/v1/claim')return Response.json({principal,credential:'credential-'+(++claims),deviceId:'device-'+claims,confirmation:'SYNTHETIC'});if(path.endsWith('/poll')){polls++;if(polls===1)return new Promise(ok=>release=()=>ok(new Response(null,{status:401})));return Response.json({state:'pending',job:null});}return Response.json({recorded:true});};
  const client=new OpenCodeRelayClient({url:'https://relay.example.test',fetch}),adapter={forPrincipal(){return this;}};

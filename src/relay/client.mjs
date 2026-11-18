@@ -36,7 +36,8 @@ export class OpenCodeRelayClient{
     // Once a write reaches the adapter, an error cannot prove absence of effects.
     attempted=true;
     receipt.result=await this.#execute(checked.operation,checked.input);receipt.status='succeeded';
-    if(JSON.stringify(receipt.result).length>240000){
+    // The public Worker accepts at most 64 KiB for the entire UTF-8 body.
+    if(new TextEncoder().encode(JSON.stringify(receipt)).byteLength>64000){
      const result=receipt.result;
      receipt.result={truncated:true,message:'O OpenCode confirmou a chamada. A resposta excedeu o limite da ponte; consulte os detalhes no OpenCode local.'};
      if(typeof result?.accepted==='boolean')receipt.result.accepted=result.accepted;
