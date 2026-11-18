@@ -1,6 +1,6 @@
 import {access,realpath} from 'node:fs/promises';
 import {constants} from 'node:fs';
-import {join,isAbsolute,delimiter} from 'node:path';
+import {join,isAbsolute,delimiter,win32} from 'node:path';
 import {execFile,spawn} from 'node:child_process';
 import {promisify} from 'node:util';
 import {createServer} from 'node:net';
@@ -35,7 +35,7 @@ export function createLocalAIEnvironment(localAI){
  if(localAI===undefined||localAI===null)return {};
  if(!localAI||typeof localAI!=='object'||Array.isArray(localAI))throw Error('Configuração de IA local inválida.');
  const configPath=localAI.configPath,apiKey=localAI.apiKey;
- if(typeof configPath!=='string'||configPath.includes('\\0')||!(isAbsolute(configPath)||win32.isAbsolute(configPath)))throw Error('Caminho da configuração de IA local deve ser absoluto.');
+ if(typeof configPath!=='string'||configPath.includes('\0')||!(isAbsolute(configPath)||win32.isAbsolute(configPath)))throw Error('Caminho da configuração de IA local deve ser absoluto.');
  if(typeof apiKey!=='string'||!/^[a-f0-9]{48,128}$/i.test(apiKey))throw Error('Chave da IA local inválida.');
  return {OPENCODE_CONFIG:configPath,W1_LOCAL_AI_KEY:apiKey};
 }
