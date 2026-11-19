@@ -3,6 +3,8 @@ import {authorize} from '../src/relay/auth.mjs';
 import {fail,tokenMatches} from '../src/relay/protocol.mjs';
 import {serveMcp} from './remote-mcp.mjs';
 import page from '../web/connect.html';
+import centralLogo from '../web/central.png';
+import predictBotLogo from '../web/predictbot.png';
 import style from '../web/connect.css';
 import client from '../dist/connect.txt';
 export {OpenCodeRelay};
@@ -23,7 +25,7 @@ async function input(request){
  const buffer=new Uint8Array(bytes);let at=0;for(const chunk of chunks){buffer.set(chunk,at);at+=chunk.length;}
  try{return JSON.parse(new TextDecoder().decode(buffer));}catch{fail('JSON inválido.',400);}
 }
-const staticHeaders=env=>({'Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' "+new URL(env.SUPABASE_URL).origin+"; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",'Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','Cache-Control':'no-store'});
+const staticHeaders=env=>({'Content-Security-Policy':"default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self' "+new URL(env.SUPABASE_URL).origin+"; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",'Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','Cache-Control':'no-store'});
 async function handle(request,env,ctx){
  const url=new URL(request.url),origin=request.headers.get('origin');
  const allowed=[url.origin,...(env.ALLOWED_ORIGINS||'').split(',').filter(Boolean)];
@@ -34,6 +36,9 @@ async function handle(request,env,ctx){
   if(url.pathname==='/health'&&request.method==='GET')return json({service:'w1-opencode-relay',version:'0.2.0',configured:!!(env.RELAY&&env.RELAY_SIGNING_KEY&&env.SUPABASE_URL&&env.SUPABASE_PUBLISHABLE_KEY),modelInference:false});
   if(url.pathname==='/.well-known/oauth-protected-resource'||url.pathname==='/.well-known/oauth-protected-resource/mcp')return json({resource,authorization_servers:[env.SUPABASE_URL.replace(/\/$/,'')+'/auth/v1'],bearer_methods_supported:['header'],resource_name:'W1 Capital · OpenCode'});
   if(request.method==='OPTIONS')return new Response(null,{status:204,headers:origin?{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'authorization,content-type,mcp-protocol-version','Access-Control-Allow-Methods':'GET,POST,OPTIONS','Vary':'Origin'}:{}});
+  if(request.method==='GET'&&['/central.png','/predictbot.png'].includes(url.pathname)){
+   return new Response(url.pathname==='/central.png'?centralLogo:predictBotLogo,{headers:{'Content-Type':'image/png','X-Content-Type-Options':'nosniff'}});
+  }
   if(request.method==='GET'&&['/','/connect','/connect.js','/connect.css','/public-config'].includes(url.pathname)){
    const headers=staticHeaders(env);
    if(url.pathname==='/public-config')return json({url:env.SUPABASE_URL,key:env.SUPABASE_PUBLISHABLE_KEY});
